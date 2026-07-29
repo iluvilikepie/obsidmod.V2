@@ -1104,12 +1104,7 @@ function Library:GetIcon(IconName: string)
     return Icon
 end
 
-    local Success, Icon = pcall(Icons.GetAsset, IconName)
-    if not Success then
-        return
-    end
-    return Icon
-end
+    
 
 function Library:GetCustomIcon(IconName: string): any
     if not IconName then
