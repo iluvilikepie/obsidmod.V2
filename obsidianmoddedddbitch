@@ -1051,21 +1051,56 @@ type IconModule = {
     GetAsset: (Name: string) -> Icon?,
 }
 
-local FetchIcons, Icons = pcall(function()
-    return (loadstring(
-        game:HttpGet("https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/refs/heads/main/source.lua")
-    ) :: () -> IconModule)()
-end)
+-- custom mod: the old GitHub icon repo 404s now; upstream moved it to GitLab.
+-- Try each source in turn so one dead host can't wipe out every icon again.
+local IconModuleURLs = {
+    "https://gitlab.com/upio/lucide-roblox-direct/-/raw/main/source.lua",
+    "https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/refs/heads/main/source.lua",
+}
+
+local FetchIcons, Icons = false, nil
+for _, URL in IconModuleURLs do
+    local Success, Result = pcall(function()
+        return (loadstring(game:HttpGet(URL)) :: () -> IconModule)()
+    end)
+
+    if Success and typeof(Result) == "table" and typeof(Result.GetAsset) == "function" then
+        FetchIcons, Icons = true, Result
+        break
+    end
+end
+
+if not FetchIcons then
+    warn("[VOWLib] Icon module unreachable, using built-in fallbacks.")
+end
+
+-- custom mod: stand-ins for icons the UI can't do without. CheckIcon already
+-- ships with the library (CustomImageManagerAssets), so it costs nothing.
+local FallbackIcons = {
+    ["check"] = function()
+        return {
+            Url = CustomImageManager.GetAsset("CheckIcon"),
+            ImageRectOffset = Vector2.zero,
+            ImageRectSize = Vector2.zero,
+        }
+    end,
+}
 
 function Library:GetIcon(IconName: string)
+    local function Fallback()
+        local Builder = FallbackIcons[IconName]
+        return Builder and Builder() or nil
+    end
+
     if not FetchIcons then
-        return
+        return Fallback()
     end
 
     local Success, Icon = pcall(Icons.GetAsset, IconName)
-    if not Success then
-        return
+    if not Success or not Icon then
+        return Fallback()
     end
+
     return Icon
 end
 
