@@ -5022,33 +5022,7 @@ do
             Size = UDim2.fromOffset(16, 16),
             Parent = DisplayContainer,
         })
--- custom mod: no lucide module means no chevron asset, so draw one from two
-        -- rotated bars. Parented to ArrowImage so the open/close 180 flip still
-        -- applies, with transparency mirrored off the image it replaces.
-        if not ArrowIcon then
-            local ChevronBars = {}
 
-            for _, Angle in { -45, 45 } do
-                table.insert(
-                    ChevronBars,
-                    New("Frame", {
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundColor3 = "FontColor",
-                        BackgroundTransparency = ArrowImage.ImageTransparency,
-                        Position = UDim2.fromScale(Angle < 0 and 0.32 or 0.68, 0.56),
-                        Rotation = Angle,
-                        Size = UDim2.fromOffset(9, 2),
-                        Parent = ArrowImage,
-                    })
-                )
-            end
-
-            ArrowImage:GetPropertyChangedSignal("ImageTransparency"):Connect(function()
-                for _, Bar in ChevronBars do
-                    Bar.BackgroundTransparency = ArrowImage.ImageTransparency
-                end
-            end)
-        end
         local SearchBox
         if Info.Searchable then
             SearchBox = New("TextBox", {
