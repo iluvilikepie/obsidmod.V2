@@ -1051,16 +1051,58 @@ type IconModule = {
     GetAsset: (Name: string) -> Icon?,
 }
 
-local FetchIcons, Icons = pcall(function()
-    return (loadstring(
-        game:HttpGet("https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/refs/heads/main/source.lua")
-    ) :: () -> IconModule)()
-end)
+-- custom mod: the old GitHub icon repo 404s now; upstream moved it to GitLab.
+-- Try each source in turn so one dead host can't wipe out every icon again.
+local IconModuleURLs = {
+    "https://gitlab.com/upio/lucide-roblox-direct/-/raw/main/source.lua",
+    "https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/refs/heads/main/source.lua",
+}
+
+local FetchIcons, Icons = false, nil
+for _, URL in IconModuleURLs do
+    local Success, Result = pcall(function()
+        return (loadstring(game:HttpGet(URL)) :: () -> IconModule)()
+    end)
+
+    if Success and typeof(Result) == "table" and typeof(Result.GetAsset) == "function" then
+        FetchIcons, Icons = true, Result
+        break
+    end
+end
+
+if not FetchIcons then
+    warn("[VOWLib] Icon module unreachable, using built-in fallbacks.")
+end
+
+-- custom mod: stand-ins for icons the UI can't do without. CheckIcon already
+-- ships with the library (CustomImageManagerAssets), so it costs nothing.
+local FallbackIcons = {
+    ["check"] = function()
+        return {
+            Url = CustomImageManager.GetAsset("CheckIcon"),
+            ImageRectOffset = Vector2.zero,
+            ImageRectSize = Vector2.zero,
+        }
+    end,
+}
 
 function Library:GetIcon(IconName: string)
-    if not FetchIcons then
-        return
+    local function Fallback()
+        local Builder = FallbackIcons[IconName]
+        return Builder and Builder() or nil
     end
+
+    if not FetchIcons then
+        return Fallback()
+    end
+
+    local Success, Icon = pcall(Icons.GetAsset, IconName)
+    if not Success or not Icon then
+        return Fallback()
+    end
+
+    return Icon
+end
 
     local Success, Icon = pcall(Icons.GetAsset, IconName)
     if not Success then
@@ -4980,7 +5022,33 @@ do
             Size = UDim2.fromOffset(16, 16),
             Parent = DisplayContainer,
         })
+-- custom mod: no lucide module means no chevron asset, so draw one from two
+        -- rotated bars. Parented to ArrowImage so the open/close 180 flip still
+        -- applies, with transparency mirrored off the image it replaces.
+        if not ArrowIcon then
+            local ChevronBars = {}
 
+            for _, Angle in { -45, 45 } do
+                table.insert(
+                    ChevronBars,
+                    New("Frame", {
+                        AnchorPoint = Vector2.new(0.5, 0.5),
+                        BackgroundColor3 = "FontColor",
+                        BackgroundTransparency = ArrowImage.ImageTransparency,
+                        Position = UDim2.fromScale(Angle < 0 and 0.32 or 0.68, 0.56),
+                        Rotation = Angle,
+                        Size = UDim2.fromOffset(9, 2),
+                        Parent = ArrowImage,
+                    })
+                )
+            end
+
+            ArrowImage:GetPropertyChangedSignal("ImageTransparency"):Connect(function()
+                for _, Bar in ChevronBars do
+                    Bar.BackgroundTransparency = ArrowImage.ImageTransparency
+                end
+            end)
+        end
         local SearchBox
         if Info.Searchable then
             SearchBox = New("TextBox", {
