@@ -5018,13 +5018,6 @@ do
             Parent = DisplayContainer,
         })
 
-
-            ArrowImage:GetPropertyChangedSignal("ImageTransparency"):Connect(function()
-                for _, Bar in ChevronBars do
-                    Bar.BackgroundTransparency = ArrowImage.ImageTransparency
-                end
-            end)
-        end
         local SearchBox
         if Info.Searchable then
             SearchBox = New("TextBox", {
